@@ -3,7 +3,7 @@ import numpy as np
 
 
 class Simulation(ABC):
-    def __init__(self, n, r=0.01, rho=1, eta=1):
+    def __init__(self, n, r=1e-4, rho=1e4, eta=1e-3):
         # Particle
         self.n = n
         self.r = r  # radius
