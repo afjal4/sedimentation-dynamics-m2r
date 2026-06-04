@@ -7,8 +7,8 @@ class Simulation(ABC):
         # Particle
         self.n = n
         self.r = r  # size
-        self.x = np.zeros((self.n, 3))  # positions
-        self.v = np.zeros((self.n, 3))  # velocities
+        self.x = np.zeros((n, 3))  # positions
+        self.v = np.zeros((n, 3))  # velocities
 
         # Fluid
         self.rho = rho  # pressure
@@ -46,10 +46,7 @@ class Simulation(ABC):
     def stokeslet(self, x, x_0, F) -> np.ndarray:
         r = np.linalg.norm(x - x_0)
         c = 1/(8*np.pi*self.eta*r)
-        return c * (np.eye(3) + np.outer(x - x_0, x - x_0)/r**2) * F
-    
-    def render(self):
-        pass
+        return c * (np.eye(3) + np.outer(x - x_0, x - x_0)/r**2) @ F
 
 
 class SingleParticleSim(Simulation):
@@ -57,11 +54,19 @@ class SingleParticleSim(Simulation):
         super().__init__(1)
 
 
+class NGonSim(Simulation):
+    def __init__(self, n, R=1):
+        super().__init__(n)
+        # Initialise particles in a regular n-gon
+        theta = np.linspace(0, 2*np.pi, n, endpoint=False)
+        self.x = np.stack((R * np.cos(theta), R * np.sin(theta), np.zeros(n)), axis=-1)
+
+
 class CloudSim(Simulation):
-    def __init__(self, n, cloud_r=1):
+    def __init__(self, n, R=1):
         super().__init__(n)
         # Initialise cloud randomly
         dir = np.random.normal(size=(3, n))
         dir /= np.linalg.norm(dir, axis=0)
-        mag = cloud_r * np.random.random(n) ** 1/3
-        self.x = dir * mag
+        mag = R * np.random.random(n) ** 1/3
+        self.x = (dir * mag).T
