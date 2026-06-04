@@ -6,12 +6,12 @@ class Simulation(ABC):
     def __init__(self, n, r=0.01, rho=1, eta=1):
         # Particle
         self.n = n
-        self.r = r  # size
+        self.r = r  # radius
         self.x = np.zeros((n, 3))  # positions
         self.v = np.zeros((n, 3))  # velocities
 
         # Fluid
-        self.rho = rho  # pressure
+        self.rho = rho  # density
         self.eta = eta  # viscosity
 
         # Time
@@ -22,13 +22,15 @@ class Simulation(ABC):
         # Update positions
         self.x += self.v * self.dt
 
+        # Gravitational force
+        F_grav = np.array([0.0, 0.0, -self.rho * 4/3 * np.pi * self.r**3])
+
         # Update velocities
         for i in range(self.n):
-            F = np.array([0, 0, -self.rho * 4/3 * np.pi * self.r**3])  # gravity
+            self.v[i] = F_grav / (6 * np.pi * self.eta * self.r)
             for j in range(self.n):
                 if i != j:
-                    F += self.S(j)(i)  # stokeslet interaction
-            self.v[i] = F / (6 * np.pi * self.eta * self.r)  # Stokes' law
+                    self.v[i] += self.S(j)(i)
 
         # Update time
         self.t += self.dt
@@ -41,7 +43,8 @@ class Simulation(ABC):
         return states
 
     def S(self, m):
-        return lambda i: self.stokeslet(self.x[i], self.x[m], self.v[m])
+        F_m = np.array([0.0, 0.0, -self.rho * 4/3 * np.pi * self.r**3])
+        return lambda i: self.stokeslet(self.x[i], self.x[m], F_m)
 
     def stokeslet(self, x, x_0, F) -> np.ndarray:
         r = np.linalg.norm(x - x_0)
@@ -50,21 +53,22 @@ class Simulation(ABC):
 
 
 class SingleParticleSim(Simulation):
-    def __init__(self):
-        super().__init__(1)
+    def __init__(self, **kwargs):
+        super().__init__(1, **kwargs)
 
 
 class NGonSim(Simulation):
-    def __init__(self, n, R=1):
-        super().__init__(n)
+    def __init__(self, n, R=1, **kwargs):
+        super().__init__(n, **kwargs)
         # Initialise particles in a regular n-gon
         theta = np.linspace(0, 2*np.pi, n, endpoint=False)
-        self.x = np.stack((R * np.cos(theta), R * np.sin(theta), np.zeros(n)), axis=-1)
+        points = (R * np.cos(theta), R * np.sin(theta), np.zeros(n))
+        self.x = np.stack(points, axis=-1)
 
 
 class CloudSim(Simulation):
-    def __init__(self, n, R=1):
-        super().__init__(n)
+    def __init__(self, n, R=1, **kwargs):
+        super().__init__(n, **kwargs)
         # Initialise cloud randomly
         dir = np.random.normal(size=(3, n))
         dir /= np.linalg.norm(dir, axis=0)
