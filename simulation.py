@@ -3,7 +3,7 @@ import numpy as np
 
 
 class Simulation(ABC):
-    def __init__(self, n, r=1, rho=1, eta=1):
+    def __init__(self, n, r=0.01, rho=1, eta=1):
         # Particle
         self.n = n
         self.r = r  # size
@@ -13,6 +13,34 @@ class Simulation(ABC):
         # Fluid
         self.rho = rho  # pressure
         self.eta = eta  # viscosity
+
+        # Time
+        self.t = 0
+        self.dt = 0.1
+
+    def update(self):
+        # Update positions
+        self.x += self.v * self.dt
+
+        # Update velocities
+        for i in range(self.n):
+            F = np.array([0, 0, -self.rho * 4/3 * np.pi * self.r**3])  # gravity
+            for j in range(self.n):
+                if i != j:
+                    F += self.stokeslet(self.x[i], self.x[j], self.v[j])  # stokeslet interaction
+            self.v[i] = F / (6 * np.pi * self.eta * self.r)  # Stokes' law
+
+        # Update time
+        self.t += self.dt
+
+    def run(self, steps):
+        for _ in range(steps):
+            self.update()
+
+    def stokeslet(self, x, x_0, F):
+        r = np.linalg.norm(x - x_0)
+        c = 1/(8*np.pi*self.eta*r)
+        return c * (np.eye(3) + np.outer(x - x_0, x - x_0)/r**2) * F
 
 
 class SingleParticleSim(Simulation):
@@ -27,4 +55,4 @@ class CloudSim(Simulation):
         dir = np.random.normal(size=(3, n))
         dir /= np.linalg.norm(dir, axis=0)
         mag = cloud_r * np.random.random(n) ** 1/3
-        return dir * mag
+        self.x = dir * mag
