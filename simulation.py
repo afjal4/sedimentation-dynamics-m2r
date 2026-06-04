@@ -27,7 +27,7 @@ class Simulation(ABC):
             F = np.array([0, 0, -self.rho * 4/3 * np.pi * self.r**3])  # gravity
             for j in range(self.n):
                 if i != j:
-                    F += self.stokeslet(self.x[i], self.x[j], self.v[j])  # stokeslet interaction
+                    F += self.S(self.x[j], self.v[j])(self.x[i])  # stokeslet
             self.v[i] = F / (6 * np.pi * self.eta * self.r)  # Stokes' law
 
         # Update time
@@ -36,6 +36,9 @@ class Simulation(ABC):
     def run(self, steps):
         for _ in range(steps):
             self.update()
+
+    def S(self, x_0, F):
+        return lambda x: self.stokeslet(x, x_0, F)
 
     def stokeslet(self, x, x_0, F):
         r = np.linalg.norm(x - x_0)
