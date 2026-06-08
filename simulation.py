@@ -69,8 +69,54 @@ class NGonSim(Simulation):
 class CloudSim(Simulation):
     def __init__(self, n, R=1, **kwargs):
         super().__init__(n, **kwargs)
-        # Initialise cloud randomly
+        self.x = self.random_sphere(n, R)
+
+    def random_sphere(self, n, R):
         dir = np.random.normal(size=(3, n))
         dir /= np.linalg.norm(dir, axis=0)
-        mag = R * np.random.random(n) ** 1/3
-        self.x = (dir * mag).T
+        mag = R * np.random.random(n) ** (1/3)
+        return (dir * mag).T
+
+
+class SheetSim(Simulation):
+    def __init__(self, n, R=1, **kwargs):
+        super().__init__(n, **kwargs)
+
+        # Random direction in 2d (so only y-z plane)
+        dir = np.random.normal(size=(2, n))
+        dir /= np.linalg.norm(dir, axis=0)
+
+        mag = R * np.random.random(n) ** (1/2)
+
+        y = dir[0] * mag
+        z = dir[1] * mag
+        x = np.zeros(n)
+    
+        self.x = np.column_stack([x, y, z])
+
+
+# two particles one above the other
+class VerticalTwoParticleSim(Simulation):
+    def __init__(self, separation=1.0, **kwargs):
+        super().__init__(2, **kwargs)
+        self.x = np.array([[0, 0, separation/2], [0,0, -separation/2]])
+
+
+# two particles side by side
+class HorizontalTwoParticleSim(Simulation):
+    def __init__(self, separation=1.0, **kwargs):
+        super().__init__(2, **kwargs)
+        self.x = np.array([[separation/2, 0, 0], [-separation/2,0, 0]])
+
+
+# two separate clouds released one above the other
+class TwoCloudSim(CloudSim):
+    def __init__(self, n, R=1, separation=4.0, **kwargs):
+        super().__init__(2*n, **kwargs)
+        cloud1 = self.random_sphere(n, R)
+        cloud2 = self.random_sphere(n, R)
+
+        for particle in cloud2:
+            particle[2] += separation
+
+        self.x = np.concatenate([cloud1, cloud2])
