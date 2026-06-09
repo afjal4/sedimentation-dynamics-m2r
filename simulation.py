@@ -3,34 +3,34 @@ import numpy as np
 
 
 class Simulation(ABC):
-    def __init__(self, n, r=1e-4, rho=1e4, eta=1e-3, fall=True):
+    def __init__(self, n, r=1, eta=1, F_grav=1, dt=0.01, fall=True):
         # Particle
         self.n = n
-        self.r = r  # radius
+        self.r = r          # particle radius (dimensionless, in units of R)
+        self.eta = eta      # viscosity (= 1 in natural units)
+        self.F_grav = np.array([0.0, 0.0, -float(F_grav)])  # gravitational force vector
+
         self.x = np.zeros((n, 3))  # positions
         self.v = np.zeros((n, 3))  # velocities
 
-        # Fluid
-        self.rho = rho  # density
-        self.eta = eta  # viscosity
-        self.g = 9.81
-
         # Fall
-        self.fall = fall  # whether particles fall under gravity
+        self.fall = fall
 
-        # Time
+        # Natural time unit: tau = r / v_term = 6*pi*eta*r^2 / |F_grav|
+        # dt is a dimensionless fraction of tau
+        self.tau = 6 * np.pi * eta * r**2 / float(F_grav)
+        self.dt = dt * self.tau
         self.t = 0
-        self.dt = 0.1
 
     def update(self):
         # Update positions
         self.x += self.v * self.dt
 
-        # Terminal velocity from gravity (Stokes drag)
-        F_grav = np.array([0.0, 0.0, -self.rho * 4/3 * np.pi * self.r**3 * self.g])
-        self.v = np.tile(F_grav / (6 * np.pi * self.eta * self.r), (self.n, 1))
+        # Terminal velocity: v_term = F_grav / (6*pi*eta*r), broadcast to all particles
+        v_term = self.F_grav / (6 * np.pi * self.eta * self.r)
+        self.v = np.tile(v_term, (self.n, 1))
 
-        # Update velocities
+        # Add Stokeslet interactions
         for i in range(self.n):
             for j in range(self.n):
                 if i != j:
@@ -51,8 +51,7 @@ class Simulation(ABC):
         return states
 
     def S(self, m):
-        F_m = np.array([0.0, 0.0, -self.rho * 4/3 * np.pi * self.r**3 * self.g])
-        return lambda i: self.stokeslet(self.x[i], self.x[m], F_m)
+        return lambda i: self.stokeslet(self.x[i], self.x[m], self.F_grav)
 
     def stokeslet(self, x, x_0, F) -> np.ndarray:
         r = np.linalg.norm(x - x_0)
